@@ -12,6 +12,13 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [ pkgconfig wafHook ];
   buildInputs = [ gtk2 libsndfile python3 ];
 
+  # Prevent configure script from selecting global "/Library/Audio/Plug-Ins/LV2"
+  # as bundle directory when building on macOS.
+  # https://github.com/drobilla/autowaf/blob/878bdba53979f11fa582088e47997df129e56d16/extras/lv2.py#L58-L73
+  wafConfigureFlags = [
+    "--lv2dir=${placeholder "out"}/usr/local/lib/lv2"
+  ];
+
   meta = with stdenv.lib; {
     homepage = "https://lv2plug.in";
     description = "A plugin standard for audio systems";

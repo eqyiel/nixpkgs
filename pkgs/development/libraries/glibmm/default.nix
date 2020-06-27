@@ -2,12 +2,14 @@
 
 stdenv.mkDerivation rec {
   pname = "glibmm";
-  version = "2.64.2";
+  version = "2.42.2";
 
   src = fetchurl {
     url = "mirror://gnome/sources/${pname}/${stdenv.lib.versions.majorMinor version}/${pname}-${version}.tar.xz";
-    sha256 = "1v6lp23fr2qh4zshcnm28sn29j3nzgsvcqj2nhmrnvamipjq4lm7";
+    sha256 = "15rk3az8jh3rdwlc3lxjljbnh60drj3ka9574zd39lkqfgcq6l4q";
   };
+
+  patches = [ ./desktopappinfo.patch ];
 
   outputs = [ "out" "dev" ];
 
@@ -34,7 +36,7 @@ stdenv.mkDerivation rec {
 
     license = licenses.lgpl2Plus;
 
-    maintainers = with maintainers; [raskin];
+    maintainers = with maintainers; [ raskin ];
     platforms = platforms.unix;
   };
 }

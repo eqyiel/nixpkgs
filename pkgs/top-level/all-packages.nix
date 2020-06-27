@@ -11319,7 +11319,9 @@ in
 
   aqbanking = callPackage ../development/libraries/aqbanking { };
 
-  aubio = callPackage ../development/libraries/aubio { };
+  aubio = callPackage ../development/libraries/aubio {
+    inherit (darwin.apple_sdk.frameworks) CoreMedia;
+  };
 
   audiofile = callPackage ../development/libraries/audiofile {
     inherit (darwin.apple_sdk.frameworks) AudioUnit CoreServices;
@@ -14571,7 +14573,9 @@ in
 
   rttr = callPackage ../development/libraries/rttr { };
 
-  rubberband = callPackage ../development/libraries/rubberband { };
+  rubberband = callPackage ../development/libraries/rubberband {
+    inherit (darwin.apple_sdk.frameworks) CoreVideo;
+  };
 
   sad = callPackage ../applications/science/logic/sad { };
 
@@ -18783,7 +18787,11 @@ in
 
   aqemu = libsForQt5.callPackage ../applications/virtualization/aqemu { };
 
-  ardour = callPackage ../applications/audio/ardour { };
+  ardour = callPackage ../applications/audio/ardour {
+    inherit (darwin.apple_sdk.frameworks)
+      AppKit CoreAudio CoreAudioKit CoreFoundation CoreServices AudioToolbox
+      AudioUnit Cocoa Carbon;
+  };
 
   ardour_5 = lowPrio (callPackage ../applications/audio/ardour/5.nix { });
 

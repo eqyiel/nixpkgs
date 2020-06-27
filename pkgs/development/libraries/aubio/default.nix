@@ -1,5 +1,14 @@
-{ stdenv, fetchurl, alsaLib, fftw, libjack2, libsamplerate
-, libsndfile, pkgconfig, python, wafHook
+{ stdenv
+, fetchurl
+, alsaLib
+, fftw
+, libjack2
+, libsamplerate
+, libsndfile
+, pkgconfig
+, python
+, wafHook
+, CoreMedia
 }:
 
 stdenv.mkDerivation rec {
@@ -11,13 +20,22 @@ stdenv.mkDerivation rec {
   };
 
   nativeBuildInputs = [ pkgconfig python wafHook ];
-  buildInputs = [ alsaLib fftw libjack2 libsamplerate libsndfile ];
+  buildInputs = [
+    fftw
+    libsamplerate
+    libsndfile
+  ] ++ stdenv.lib.optionals stdenv.isDarwin [
+    CoreMedia
+  ] ++ stdenv.lib.optionals stdenv.isLinux [
+    alsaLib
+    libjack2
+  ];
 
   meta = with stdenv.lib; {
     description = "Library for audio labelling";
     homepage = "https://aubio.org/";
     license = licenses.gpl2;
     maintainers = with maintainers; [ goibhniu marcweber fpletz ];
-    platforms = platforms.linux;
+    platforms = platforms.unix;
   };
 }

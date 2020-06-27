@@ -2,7 +2,6 @@
 , fetchFromGitHub
 , fetchpatch
 }:
-
 stdenv.mkDerivation rec {
   pname = "kissfft";
   version = "131";
@@ -30,6 +29,10 @@ stdenv.mkDerivation rec {
     })
   ];
 
+  postPatch = ''
+    substituteInPlace Makefile --replace gcc '$(CC)'
+  '';
+
   makeFlags = [
     "PREFIX=${placeholder "out"}"
     "DATATYPE=double"
@@ -40,6 +43,6 @@ stdenv.mkDerivation rec {
     homepage = "https://github.com/mborgerding/kissfft";
     license = licenses.bsd3;
     maintainers = [ maintainers.goibhniu ];
-    platforms = platforms.linux;
+    platforms = platforms.unix;
   };
 }

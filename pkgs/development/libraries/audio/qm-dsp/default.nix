@@ -1,7 +1,7 @@
 { stdenv
 , fetchFromGitHub
 , fetchpatch
-, kissfft
+  #, kissfft
 }:
 
 stdenv.mkDerivation rec {
@@ -30,18 +30,21 @@ stdenv.mkDerivation rec {
     })
   ];
 
-  buildInputs = [
-    kissfft
-  ];
+  # buildInputs = [
+  #   kissfft
+  # ];
 
-  makefile = "build/linux/Makefile.linux32";
+  makefile = if stdenv.isLinux then "build/linux/Makefile.linux32" else "build/osx/Makefile.osx";
 
   makeFlags = [
     "PREFIX=${placeholder "out"}"
     "LIBDIR=${placeholder "out"}/lib"
   ];
 
-  NIX_CFLAGS_COMPILE = "-I${kissfft}/include/kissfft";
+  preBuild = ''
+    substituteInPlace build/general/Makefile.inc \
+      --replace '-Dkiss_fft_scalar=double' '-Dkiss_fft_scalar=double -Iext/kissfft -I ext/kissfft/tools'
+  '';
 
   meta = with stdenv.lib; {
     description = "A C++ library of functions for DSP and Music Informatics purposes";

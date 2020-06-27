@@ -13,7 +13,7 @@
 , fftwSinglePrec
 , flac
 , fluidsynth
-, glibc
+, gettext
 , glibmm
 , graphviz
 , gtkmm2
@@ -52,6 +52,15 @@
 , taglib
 , vamp-plugin-sdk
 , wafHook
+, AppKit
+, CoreAudio
+, CoreAudioKit
+, CoreFoundation
+, CoreServices
+, AudioToolbox
+, AudioUnit
+, Cocoa
+, Carbon
 }:
 stdenv.mkDerivation rec {
   pname = "ardour";
@@ -80,7 +89,6 @@ stdenv.mkDerivation rec {
   ];
 
   buildInputs = [
-    alsaLib
     aubio
     boost
     cairomm
@@ -97,11 +105,9 @@ stdenv.mkDerivation rec {
     hidapi
     itstool
     libarchive
-    libjack2
     liblo
     libltc
     libogg
-    libpulseaudio
     librdf_raptor
     librdf_rasqal
     libsamplerate
@@ -118,16 +124,45 @@ stdenv.mkDerivation rec {
     pango
     perl
     python3
-    qm-dsp
+    # qm-dsp
     readline
     rubberband
     serd
     sord
     sratom
-    suil
+    (suil.override ({
+      withQt4 = false;
+      withQt5 = true;
+    }))
     taglib
     vamp-plugin-sdk
+  ] ++ stdenv.lib.optionals stdenv.isDarwin [
+    # (gtkmm2.override {
+    #   gtk2 = gtk2.overrideAttrs (attrs: {
+    #     patches = [ "${src}/tools/patches/gtk-osx.patch" ];
+    #   });
+    # })
+    AppKit
+    CoreAudio
+    CoreAudioKit
+    CoreFoundation
+    CoreServices
+    AudioToolbox
+    AudioUnit
+    Cocoa
+    Carbon
+  ] ++ stdenv.lib.optionals stdenv.isLinux [
+    alsaLib
+    libjack2
+    libpulseaudio
   ];
+
+  # let
+  #   backends =
+  #     if stdenv.isLinux then "jack,alsa,dummy"
+  #     else if stdenv.isDarwin then "coreaudio,dummy"
+  #     else "dummy";
+  # in
 
   wafConfigureFlags = [
     "--cxx11"
@@ -136,17 +171,20 @@ stdenv.mkDerivation rec {
     "--no-phone-home"
     "--optimize"
     "--ptformat"
-    "--qm-dsp-include=${qm-dsp}/include/qm-dsp"
+    # "--qm-dsp-include=${qm-dsp}/include/qm-dsp"
     "--run-tests"
     "--test"
-    "--use-external-libs"
+    # "--use-external-libs"
   ];
+
+  wafFlags = [ "-v" ];
+
 
   # Ardour's wscript requires git revision and date to be available.
   # Since they are not, let's generate the file manually.
   postPatch = ''
     printf '#include "libs/ardour/ardour/revision.h"\nnamespace ARDOUR { const char* revision = "${version}"; const char* date = ""; }\n' > libs/ardour/revision.cc
-    sed 's|/usr/include/libintl.h|${glibc.dev}/include/libintl.h|' -i wscript
+    sed 's|/usr/include/libintl.h|${gettext}/include/libintl.h|' -i wscript
     patchShebangs ./tools/
     substituteInPlace libs/ardour/video_tools_paths.cc \
       --replace 'ffmpeg_exe = X_("");' 'ffmpeg_exe = X_("${ffmpeg_3}/bin/ffmpeg");' \
@@ -164,6 +202,11 @@ stdenv.mkDerivation rec {
         "$out/share/icons/hicolor/''${size}x''${size}/apps/ardour6.png"
     done
     install -vDm 644 "ardour.1"* -t "$out/share/man/man1"
+  '' + stdenv.lib.optionalString stdenv.isDarwin ''
+    pushd
+    cd tools/osx_packaging
+    ./osx_build --public
+    popd
   '';
 
   LINKFLAGS = "-lpthread";

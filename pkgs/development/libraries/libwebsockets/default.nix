@@ -17,7 +17,9 @@ let
     nativeBuildInputs = [ cmake ];
 
     cmakeFlags = [ "-DLWS_WITH_PLUGINS=ON" ];
-    NIX_CFLAGS_COMPILE = "-Wno-error=unused-but-set-variable";
+
+    # Probably this was added due to this, but it is resolved in 4.0.1 https://github.com/warmcat/libwebsockets/issues/1858
+    #NIX_CFLAGS_COMPILE = "-Wno-error=unused-but-set-variable";
 
     meta = with stdenv.lib; {
       description = "Light, portable C library for websockets";
