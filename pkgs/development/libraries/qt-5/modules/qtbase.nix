@@ -5,7 +5,7 @@
   coreutils, bison, flex, gdb, gperf, lndir, perl, pkgconfig, python3,
   which,
   # darwin support
-  darwin, libiconv,
+  darwin, libiconv, xcbuild,
 
   dbus, fontconfig, freetype, glib, harfbuzz, icu, libX11, libXcomposite,
   libXcursor, libXext, libXi, libXrender, libinput, libjpeg, libpng, libtiff,
@@ -52,26 +52,17 @@ stdenv.mkDerivation {
       (if compareVersion "5.9.0" < 0 then pcre16 else pcre2)
     ]
     ++ (
-      if stdenv.isDarwin
-      then with darwin.apple_sdk.frameworks;
-        [
-          # TODO: move to buildInputs, this should not be propagated.
-          AGL AppKit ApplicationServices Carbon Cocoa CoreAudio CoreBluetooth
-          CoreLocation CoreServices DiskArbitration Foundation OpenGL
-          darwin.libobjc libiconv MetalKit IOKit
-        ]
-      else
-        [
-          dbus glib udev
+      lib.optionals (!stdenv.isDarwin) [
+        dbus glib udev
 
-          # Text rendering
-          fontconfig freetype
+        # Text rendering
+        fontconfig freetype
 
-          # X11 libs
-          libX11 libXcomposite libXext libXi libXrender libxcb libxkbcommon xcbutil
-          xcbutilimage xcbutilkeysyms xcbutilrenderutil xcbutilwm
-        ]
-        ++ lib.optional libGLSupported libGL
+        # X11 libs
+        libX11 libXcomposite libXext libXi libXrender libxcb libxkbcommon xcbutil
+        xcbutilimage xcbutilkeysyms xcbutilrenderutil xcbutilwm
+      ]
+      ++ lib.optional libGLSupported libGL
     );
 
   buildInputs =
@@ -84,10 +75,29 @@ stdenv.mkDerivation {
     ++ lib.optional developerBuild gdb
     ++ lib.optional (cups != null) cups
     ++ lib.optional (libmysqlclient != null) libmysqlclient
-    ++ lib.optional (postgresql != null) postgresql;
+    ++ lib.optional (postgresql != null) postgresql
+    ++ lib.optional stdenv.isDarwin [
+      darwin.apple_sdk.frameworks.AGL
+      darwin.apple_sdk.frameworks.AppKit
+      darwin.apple_sdk.frameworks.ApplicationServices
+      darwin.apple_sdk.frameworks.Carbon
+      darwin.apple_sdk.frameworks.Cocoa
+      darwin.apple_sdk.frameworks.CoreAudio
+      darwin.apple_sdk.frameworks.CoreBluetooth
+      darwin.apple_sdk.frameworks.CoreLocation
+      darwin.apple_sdk.frameworks.CoreServices
+      darwin.apple_sdk.frameworks.DiskArbitration
+      darwin.apple_sdk.frameworks.Foundation
+      darwin.apple_sdk.frameworks.OpenGL
+      darwin.apple_sdk.frameworks.MetalKit
+      darwin.apple_sdk.frameworks.IOKit
+      darwin.libobjc
+      darwin.libiconv
+    ];
 
   nativeBuildInputs =
-    [ bison flex gperf lndir perl pkgconfig which ];
+    [ bison flex gperf lndir perl pkgconfig which ]
+    ++ lib.optionals stdenv.isDarwin [ xcbuild ];
 
   propagatedNativeBuildInputs = [ lndir ];
 
@@ -127,23 +137,11 @@ stdenv.mkDerivation {
       if stdenv.isDarwin
       then
         ''
-          sed -i \
-              -e 's|! /usr/bin/xcode-select --print-path >/dev/null 2>&1;|false;|' \
-              -e 's|! /usr/bin/xcrun -find xcodebuild >/dev/null 2>&1;|false;|' \
-              -e 's|sysroot=$(/usr/bin/xcodebuild -sdk $sdk -version Path 2>/dev/null)|sysroot=/nonsense|' \
-              -e 's|sysroot=$(/usr/bin/xcrun --sdk $sdk --show-sdk-path 2>/dev/null)|sysroot=/nonsense|' \
-              -e 's|QMAKE_CONF_COMPILER=`getXQMakeConf QMAKE_CXX`|QMAKE_CXX="clang++"\nQMAKE_CONF_COMPILER="clang++"|' \
-              -e 's|XCRUN=`/usr/bin/xcrun -sdk macosx clang -v 2>&1`|XCRUN="clang -v 2>&1"|' \
-              -e 's#sdk_val=$(/usr/bin/xcrun -sdk $sdk -find $(echo $val | cut -d \x27 \x27 -f 1))##' \
-              -e 's#val=$(echo $sdk_val $(echo $val | cut -s -d \x27 \x27 -f 2-))##' \
-              ./configure
-              substituteInPlace ./mkspecs/common/mac.conf \
-                  --replace "/System/Library/Frameworks/OpenGL.framework/" "${darwin.apple_sdk.frameworks.OpenGL}/Library/Frameworks/OpenGL.framework/"
-              substituteInPlace ./mkspecs/common/mac.conf \
-                  --replace "/System/Library/Frameworks/AGL.framework/" "${darwin.apple_sdk.frameworks.AGL}/Library/Frameworks/AGL.framework/"
+        # Replace QMAKE_INCDIR_OPENGL values with Nix store paths
+        substituteInPlace ./mkspecs/common/mac.conf \
+            --replace "/System/Library/Frameworks/OpenGL.framework/" "${darwin.apple_sdk.frameworks.OpenGL}/Library/Frameworks/OpenGL.framework/" \
+            --replace "/System/Library/Frameworks/AGL.framework/" "${darwin.apple_sdk.frameworks.AGL}/Library/Frameworks/AGL.framework/"
         ''
-        # Note on the above: \x27 is a way if including a single-quote
-        # character in the sed string arguments.
       else
         lib.optionalString libGLSupported
           ''
@@ -397,6 +395,8 @@ stdenv.mkDerivation {
     '';
 
   setupHook = ../hooks/qtbase-setup-hook.sh;
+
+  dontUseXcbuild = true;
 
   meta = with lib; {
     homepage = "http://www.qt.io";
