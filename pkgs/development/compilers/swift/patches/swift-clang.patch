@@ -1,0 +1,17 @@
+diff --git a/lib/Frontend/InitHeaderSearch.cpp b/lib/Frontend/InitHeaderSearch.cpp
+index ac3bb713dd..738285dee1 100644
+--- a/lib/Frontend/InitHeaderSearch.cpp
++++ b/lib/Frontend/InitHeaderSearch.cpp
+@@ -117,6 +117,12 @@ static bool CanPrefixSysroot(StringRef Path) {
+ 
+ bool InitHeaderSearch::AddPath(const Twine &Path, IncludeDirGroup Group,
+                                bool isFramework) {
++  // Prevent errors like
++  // ignoring nonexistent directory "/nix/store/aq5pbm91xnmnhs9zvc2rzg2g767axphj-SDKs/MacOSX10.12.sdk/nix/store/cclhfffavwc39118vpsh6s7jfgadl6wc-libxml2-2.9.10-dev/include"
++  if (Path.str().rfind("/nix/store", 0) == 0) {
++    return AddUnmappedPath(Path, Group, isFramework);
++  }
++
+   // Add the path with sysroot prepended, if desired and this is a system header
+   // group.
+   if (HasSysroot) {

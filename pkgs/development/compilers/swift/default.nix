@@ -1,7 +1,6 @@
-{ stdenv
+{ clangStdenv
 , cmake
 , coreutils
-, glibc
 , gccForLibs
 , which
 , perl
@@ -12,10 +11,10 @@
 , swig
 , bash
 , libxml2
-, clang
 , python
 , ncurses
 , libuuid
+, libossp_uuid
 , libbsd
 , icu
 , autoconf
@@ -32,10 +31,24 @@
 , makeWrapper
 , gnumake
 , file
+, writeScriptBin
+, xcbuild
+, Libsystem
+, PowerManagement
 }:
-
 let
   version = "5.1.1";
+
+  stdenv = clangStdenv;
+
+  _libuuid = if stdenv.hostPlatform.isDarwin then libossp_uuid else libuuid;
+
+  sysctl = writeScriptBin "sysctl" ''
+    #!${stdenv.shell}
+
+    # Hack to reduce impurities
+    echo "hw.memsize: 17179869184"
+  '';
 
   fetch = { repo, sha256, fetchSubmodules ? false }:
     fetchFromGitHub {
@@ -94,10 +107,26 @@ let
       repo = "swift-corelibs-foundation";
       sha256 = "1iiiijsnys0r3hjcj1jlkn3yszzi7hwb2041cnm5z306nl9sybzp";
     };
+    libcxx = fetch {
+      repo = "swift-libcxx";
+      sha256 = "01q6m13cqa7d74l2sbci90rwk34ysjn81zb9ikfq8qnhh85rd6vv";
+    };
     libdispatch = fetch {
       repo = "swift-corelibs-libdispatch";
       sha256 = "0laqsizsikyjhrzn0rghvxd8afg4yav7cbghvnf7ywk9wc6kpkmn";
       fetchSubmodules = true;
+    };
+    syntax = fetch {
+      repo = "swift-syntax";
+      sha256 = "1cb3k43p17nxmm03yhf2kjrmb2bmmzsdfiibx0qh5rinns3x1454";
+    };
+    xcode-playground-support = fetch {
+      repo = "swift-xcode-playground-support";
+      sha256 = "1bbi6w3gvc3n07nghmz1spbm3p2clsg7fgaia7i7az75l88i2kka";
+    };
+    stress-tester = fetch {
+      repo = "swift-stress-tester";
+      sha256 = "15hlc0yha9rda6v2bmhwjy1azf52mhmnmxpvnzpkiz7pfkpa4jik";
     };
     swift = fetch {
       repo = "swift";
@@ -107,16 +136,21 @@ let
 
   devInputs = [
     curl
-    glibc
     icu
     libblocksruntime
     libbsd
     libedit
-    libuuid
+    _libuuid
     libxml2
     ncurses
     sqlite
     swig
+  ] ++ stdenv.lib.optionals stdenv.isDarwin [
+    # this breaks the build with the cmath thing
+    # Libsystem
+    PowerManagement
+    sysctl
+    xcbuild
   ];
 
   cmakeFlags = [
@@ -125,6 +159,7 @@ let
     "-DGCC_INSTALL_PREFIX=${gccForLibs}"
   ];
 
+  preset = if stdenv.hostPlatform.isDarwin then "buildbot_osx_package,no_assertions,no_test" else "buildbot_linux";
 in
 stdenv.mkDerivation {
   name = "swift-${version}";
@@ -137,7 +172,6 @@ stdenv.mkDerivation {
     coreutils
     findutils
     gnumake
-    libtool
     makeWrapper
     ninja
     perl
@@ -145,10 +179,14 @@ stdenv.mkDerivation {
     python
     rsync
     which
+  ] ++ stdenv.lib.optionals stdenv.isLinux [
+    libtool # darwin needs to use the libtool from pkgs/development/tools/xcbuild/toolchains.nix
   ];
-  buildInputs = devInputs ++ [
-    clang
-  ];
+  buildInputs = devInputs;
+  #  ++ [
+  #   not needed if using clangStdenv
+  #   clang
+  # ];
 
   # TODO: Revisit what's propagated and how
   propagatedBuildInputs = [
@@ -159,6 +197,8 @@ stdenv.mkDerivation {
 
   hardeningDisable = [ "format" ]; # for LLDB
 
+  # TODO: it should be possible to build all of these individually and cache the
+  # results using nix
   unpackPhase = ''
     mkdir src
     cd src
@@ -176,6 +216,10 @@ stdenv.mkDerivation {
     cp -r ${sources.pm} swiftpm
     cp -r ${sources.xctest} swift-corelibs-xctest
     cp -r ${sources.foundation} swift-corelibs-foundation
+    cp -r ${sources.libcxx} libcxx
+    cp -r ${sources.syntax} swift-syntax
+    cp -r ${sources.stress-tester} swift-stress-tester
+    cp -r ${sources.xcode-playground-support} swift-xcode-playground-support
     cp -r ${sources.libdispatch} swift-corelibs-libdispatch
     cp -r ${sources.swift} swift
 
@@ -183,84 +227,93 @@ stdenv.mkDerivation {
   '';
 
   patchPhase = ''
-    # Glibc 2.31 fix
-    patch -p1 -i ${./patches/swift-llvm.patch}
+        # Glibc 2.31 fix
+        patch -p1 -i ${./patches/swift-llvm.patch}
 
-    # Just patch all the things for now, we can focus this later
-    patchShebangs $SWIFT_SOURCE_ROOT
+        # Just patch all the things for now, we can focus this later
+        patchShebangs $SWIFT_SOURCE_ROOT
 
-    # TODO eliminate use of env.
-    find -type f -print0 | xargs -0 sed -i \
-      -e 's|/usr/bin/env|${coreutils}/bin/env|g' \
-      -e 's|/usr/bin/make|${gnumake}/bin/make|g' \
-      -e 's|/bin/mkdir|${coreutils}/bin/mkdir|g' \
-      -e 's|/bin/cp|${coreutils}/bin/cp|g' \
-      -e 's|/usr/bin/file|${file}/bin/file|g'
+        # TODO eliminate use of env.
+        find -type f -print0 | xargs -0 sed -i \
+          -e 's|/usr/bin/env|${coreutils}/bin/env|g' \
+          -e 's|/usr/bin/make|${gnumake}/bin/make|g' \
+          -e 's|/bin/mkdir|${coreutils}/bin/mkdir|g' \
+          -e 's|/bin/cp|${coreutils}/bin/cp|g' \
+          -e 's|/usr/bin/file|${file}/bin/file|g'
 
-    substituteInPlace swift/stdlib/public/Platform/CMakeLists.txt \
-      --replace '/usr/include' "${stdenv.cc.libc.dev}/include"
-    substituteInPlace swift/utils/build-script-impl \
-      --replace '/usr/include/c++' "${gccForLibs}/include/c++"
-    patch -p1 -d swift -i ${./patches/glibc-arch-headers.patch}
-    patch -p1 -d swift -i ${./patches/0001-build-presets-linux-don-t-require-using-Ninja.patch}
-    patch -p1 -d swift -i ${./patches/0002-build-presets-linux-allow-custom-install-prefix.patch}
-    patch -p1 -d swift -i ${./patches/0003-build-presets-linux-don-t-build-extra-libs.patch}
-    patch -p1 -d swift -i ${./patches/0004-build-presets-linux-plumb-extra-cmake-options.patch}
+        substituteInPlace swift/stdlib/public/Platform/CMakeLists.txt \
+          --replace '/usr/include' "${stdenv.cc.libc}/include"
+        substituteInPlace swift/utils/build-script-impl \
+    <<<<<<< HEAD
+          --replace '/usr/include/c++' "${gccForLibs}/include/c++"
+    ||||||| parent of dc17c4b11de... fixup! package swift for darwin
+          --replace '/usr/include/c++' "${clang.cc.gcc}/include/c++"
+    =======
+          --replace '/usr/include/c++' "${stdenv.cc}/include/c++"
+    >>>>>>> dc17c4b11de... fixup! package swift for darwin
+        patch -p1 -d swift -i ${./patches/glibc-arch-headers.patch}
+        patch -p1 -d swift -i ${./patches/0001-build-presets-linux-don-t-require-using-Ninja.patch}
+        patch -p1 -d swift -i ${./patches/0002-build-presets-linux-allow-custom-install-prefix.patch}
+        patch -p1 -d swift -i ${./patches/0003-build-presets-linux-don-t-build-extra-libs.patch}
+        patch -p1 -d swift -i ${./patches/0004-build-presets-linux-plumb-extra-cmake-options.patch}
 
-    sed -i swift/utils/build-presets.ini \
-      -e 's/^test-installable-package$/# \0/' \
-      -e 's/^test$/# \0/' \
-      -e 's/^validation-test$/# \0/' \
-      -e 's/^long-test$/# \0/' \
-      -e 's/^stress-test$/# \0/' \
-      -e 's/^test-optimized$/# \0/' \
-      \
-      -e 's/^swift-install-components=autolink.*$/\0;editor-integration/'
+        sed -i swift/utils/build-presets.ini \
+          -e 's/^test-installable-package$/# \0/' \
+          -e 's/^test$/# \0/' \
+          -e 's/^validation-test$/# \0/' \
+          -e 's/^long-test$/# \0/' \
+          -e 's/^stress-test$/# \0/' \
+          -e 's/^test-optimized$/# \0/' \
+          \
+          -e 's/^swift-install-components=autolink.*$/\0;editor-integration/'
 
-    substituteInPlace clang/lib/Driver/ToolChains/Linux.cpp \
-      --replace 'SysRoot + "/lib' '"${glibc}/lib" "'
-    substituteInPlace clang/lib/Driver/ToolChains/Linux.cpp \
-      --replace 'SysRoot + "/usr/lib' '"${glibc}/lib" "'
-    patch -p1 -d clang -i ${./patches/llvm-toolchain-dir.patch}
-    patch -p1 -d clang -i ${./purity.patch}
+        substituteInPlace clang/lib/Driver/ToolChains/Linux.cpp \
+          --replace 'SysRoot + "/lib' '"${stdenv.libc}/lib" "'
+        substituteInPlace clang/lib/Driver/ToolChains/Linux.cpp \
+          --replace 'SysRoot + "/usr/lib' '"${stdenv.libc}/lib" "'
+        patch -p1 -d clang -i ${./patches/llvm-toolchain-dir.patch}
+        patch -p1 -d clang -i ${./purity.patch}
 
-    # Workaround hardcoded dep on "libcurses" (vs "libncurses"):
-    sed -i 's/curses/ncurses/' llbuild/*/*/CMakeLists.txt
-    # uuid.h is not part of glibc, but of libuuid
-    sed -i 's|''${GLIBC_INCLUDE_PATH}/uuid/uuid.h|${libuuid.dev}/include/uuid/uuid.h|' swift/stdlib/public/Platform/glibc.modulemap.gyb
+        # Workaround hardcoded dep on "libcurses" (vs "libncurses"):
+        sed -i 's/curses/ncurses/' llbuild/*/*/CMakeLists.txt
+        # uuid.h is not part of glibc, but of libuuid
+        sed -i 's|''${GLIBC_INCLUDE_PATH}/uuid/uuid.h|${_libuuid}/include/uuid/uuid.h|' swift/stdlib/public/Platform/glibc.modulemap.gyb
 
-    # Compatibility with glibc 2.30
-    # Adapted from https://github.com/apple/swift-package-manager/pull/2408
-    patch -p1 -d swiftpm -i ${./patches/swift-package-manager-glibc-2.30.patch}
-    # https://github.com/apple/swift/pull/27288
-    patch -p1 -d swift -i ${fetchpatch {
-      url = "https://github.com/apple/swift/commit/f968f4282d53f487b29cf456415df46f9adf8748.patch";
-      sha256 = "1aa7l66wlgip63i4r0zvi9072392bnj03s4cn12p706hbpq0k37c";
-    }}
+        # Compatibility with glibc 2.30
+        # Adapted from https://github.com/apple/swift-package-manager/pull/2408
+        patch -p1 -d swiftpm -i ${./patches/swift-package-manager-glibc-2.30.patch}
+        # https://github.com/apple/swift/pull/27288
+        patch -p1 -d swift -i ${fetchpatch {
+          url = "https://github.com/apple/swift/commit/f968f4282d53f487b29cf456415df46f9adf8748.patch";
+          sha256 = "1aa7l66wlgip63i4r0zvi9072392bnj03s4cn12p706hbpq0k37c";
+        }}
 
-    PREFIX=''${out/#\/}
-    substituteInPlace indexstore-db/Utilities/build-script-helper.py \
-      --replace usr "$PREFIX"
-    substituteInPlace sourcekit-lsp/Utilities/build-script-helper.py \
-      --replace usr "$PREFIX"
-    substituteInPlace swift-corelibs-xctest/build_script.py \
-      --replace usr "$PREFIX"
-    substituteInPlace swift-corelibs-foundation/CoreFoundation/PlugIn.subproj/CFBundle_InfoPlist.c \
-      --replace "if !TARGET_OS_ANDROID" "if TARGET_OS_MAC || TARGET_OS_BSD"
-    substituteInPlace swift-corelibs-foundation/CoreFoundation/PlugIn.subproj/CFBundle_Resources.c \
-      --replace "if !TARGET_OS_ANDROID" "if TARGET_OS_MAC || TARGET_OS_BSD"
+        PREFIX=''${out/#\/}
+        substituteInPlace indexstore-db/Utilities/build-script-helper.py \
+          --replace usr "$PREFIX"
+        substituteInPlace sourcekit-lsp/Utilities/build-script-helper.py \
+          --replace usr "$PREFIX"
+        substituteInPlace swift-corelibs-xctest/build_script.py \
+          --replace usr "$PREFIX"
+        substituteInPlace swift-corelibs-foundation/CoreFoundation/PlugIn.subproj/CFBundle_InfoPlist.c \
+          --replace "if !TARGET_OS_ANDROID" "if TARGET_OS_MAC || TARGET_OS_BSD"
+        substituteInPlace swift-corelibs-foundation/CoreFoundation/PlugIn.subproj/CFBundle_Resources.c \
+          --replace "if !TARGET_OS_ANDROID" "if TARGET_OS_MAC || TARGET_OS_BSD"
+
+        patch -p1 -d swift -i ${./patches/debug.patch}
+
+        patch -p1 -d compiler-rt -i ${./patches/compiler-rt.patch}
+        patch -p1 -d clang -i ${./patches/swift-clang.patch}
   '';
 
   configurePhase = ''
     cd ..
-
-    mkdir build install
+    mkdir build install symroot
     export SWIFT_BUILD_ROOT=$PWD/build
     export SWIFT_INSTALL_DIR=$PWD/install
-
+    export SWIFT_INSTALL_SYMROOT=$PWD/symroot
     export INSTALLABLE_PACKAGE=$PWD/swift.tar.gz
-    export NIX_ENFORCE_PURITY=
-
+    export SYMBOLS_PACKAGE=$PWD/symbols.tar.gz
     cd $SWIFT_BUILD_ROOT
   '';
 
@@ -276,13 +329,27 @@ stdenv.mkDerivation {
     # fix for https://bugs.llvm.org/show_bug.cgi?id=39743
     # see also https://forums.swift.org/t/18138/15
     export CCC_OVERRIDE_OPTIONS="#x-fmodules s/-fmodules-cache-path.*//"
-
     $SWIFT_SOURCE_ROOT/swift/utils/build-script \
-      --preset=buildbot_linux \
-      installable_package=$INSTALLABLE_PACKAGE \
-      install_prefix=$out \
-      install_destdir=$SWIFT_INSTALL_DIR \
-      extra_cmake_options="${stdenv.lib.concatStringsSep "," cmakeFlags}"
+      --preset=${preset} \
+      extra_cmake_options="${stdenv.lib.concatStringsSep "," cmakeFlags}" \
+      install_destdir="$SWIFT_INSTALL_DIR" \
+      install_prefix="$out" \
+      installable_package="$INSTALLABLE_PACKAGE"
+  '' else ''
+    $SWIFT_SOURCE_ROOT/swift/utils/build-script \
+      --preset="${preset}" \
+      darwin_toolchain_alias="Local" \
+      darwin_toolchain_bundle_identifier="swift-${version}" \
+      darwin_toolchain_display_name="swift-${version}" \
+      darwin_toolchain_display_name_short="swift-${version}" \
+      darwin_toolchain_version="${version}" \
+      darwin_toolchain_xctoolchain_name="Local" \
+      extra_cmake_options="${stdenv.lib.concatStringsSep "," cmakeFlags}" \
+      install_destdir="$SWIFT_INSTALL_DIR" \
+      install_prefix="$out" \
+      install_symroot="$SWIFT_INSTALL_SYMROOT" \
+      installable_package="$INSTALLABLE_PACKAGE" \
+      symbols_package="$SYMBOLS_PACKAGE"
   '';
 
   doCheck = true;
@@ -295,10 +362,10 @@ stdenv.mkDerivation {
     rm $SWIFT_SOURCE_ROOT/swift/validation-test/Python/build_swift.swift  # install_prefix not passed properly
 
     # match the swift wrapper in the install phase
-    export LIBRARY_PATH=${icu}/lib:${libuuid.out}/lib
+    export LIBRARY_PATH=${icu}/lib:${_libuuid}/lib
 
     checkTarget=check-swift-all
-    ninjaFlags='-C buildbot_linux/swift-${stdenv.hostPlatform.parsed.kernel.name}-${stdenv.hostPlatform.parsed.cpu.name}'
+    ninjaFlags='-C ${preset}/swift-${stdenv.hostPlatform.parsed.kernel.name}-${stdenv.hostPlatform.parsed.cpu.name}'
     ninjaCheckPhase
   '';
 
@@ -317,7 +384,7 @@ stdenv.mkDerivation {
     wrapProgram $out/bin/swift \
       --suffix C_INCLUDE_PATH : $out/lib/swift/clang/include \
       --suffix CPLUS_INCLUDE_PATH : $out/lib/swift/clang/include \
-      --suffix LIBRARY_PATH : ${icu}/lib:${libuuid.out}/lib
+      --suffix LIBRARY_PATH : ${icu}/lib:${_libuuid}/lib
   '';
 
   # Hack to avoid build and install directories in RPATHs.
@@ -329,7 +396,7 @@ stdenv.mkDerivation {
     maintainers = with maintainers; [ dtzWill ];
     license = licenses.asl20;
     # Swift doesn't support 32bit Linux, unknown on other platforms.
-    platforms = platforms.linux;
+    platforms = platforms.unix;
     badPlatforms = platforms.i686;
     broken = stdenv.isAarch64; # 2018-09-04, never built on Hydra
   };

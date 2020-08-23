@@ -54,6 +54,7 @@ done
 #!${runtimeShell}
 while [ $# -gt 0 ]; do
    case "$1" in
+         --toolchain | -toolchain) shift ;;
          --sdk | -sdk) shift ;;
          --find | -find)
            shift

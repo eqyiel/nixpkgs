@@ -9962,7 +9962,9 @@ in
 
   svd2rust = callPackage ../development/tools/rust/svd2rust { };
 
-  swift = callPackage ../development/compilers/swift { };
+  swift = callPackage ../development/compilers/swift {
+    inherit (darwin) Libsystem PowerManagement;
+  };
 
   swiProlog = callPackage ../development/compilers/swi-prolog {
     inherit (darwin.apple_sdk.frameworks) Security;

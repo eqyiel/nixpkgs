@@ -1,0 +1,31 @@
+diff --git a/utils/build-presets.ini b/utils/build-presets.ini
+index 16d0321bd8c..f172335f534 100644
+--- a/utils/build-presets.ini
++++ b/utils/build-presets.ini
+@@ -1110,7 +1110,7 @@ lldb-no-debugserver
+ lldb-use-system-debugserver
+ lldb-build-type=Release
+ verbose-build
+-build-ninja
++# build-ninja
+ build-swift-static-stdlib
+ build-swift-static-sdk-overlay
+ build-swift-stdlib-unittest-extra
+@@ -1137,7 +1137,7 @@ install-symroot=%(install_symroot)s
+ 
+ # Path where the compiler, the runtime and the standard libraries will be
+ # installed.
+-install-prefix=%(install_toolchain_dir)s/usr
++install-prefix=%(install_prefix)s
+ 
+ # Executes the lit tests for the installable package that is created
+ # Assumes the swift-integration-tests repo is checked out
+@@ -1153,6 +1153,8 @@ installable-package=%(installable_package)s
+ # Path to the .tar.gz symbols package
+ symbols-package=%(symbols_package)s
+ 
++extra-cmake-options=%(extra_cmake_options)s
++
+ # Info.plist
+ darwin-toolchain-bundle-identifier=%(darwin_toolchain_bundle_identifier)s
+ darwin-toolchain-display-name=%(darwin_toolchain_display_name)s
