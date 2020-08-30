@@ -31,10 +31,9 @@
 , makeWrapper
 , gnumake
 , file
+, darwin
 , writeScriptBin
 , xcbuild
-, Libsystem
-, PowerManagement
 }:
 let
   version = "5.1.1";
@@ -146,9 +145,8 @@ let
     sqlite
     swig
   ] ++ stdenv.lib.optionals stdenv.isDarwin [
-    # this breaks the build with the cmath thing
-    # Libsystem
-    PowerManagement
+    darwin.PowerManagement # for the "caffeinate" utility used by the build script
+    darwin.apple_sdk.frameworks.CoreFoundation
     sysctl
     xcbuild
   ];

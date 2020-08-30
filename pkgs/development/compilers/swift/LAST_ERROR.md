@@ -26,3 +26,6 @@ error: build of '/nix/store/4n23lv8mba57f3ksx8f95qcwf9s0wya6-swift-5.1.1.drv' fa
 
 # TODO
 - [ ] see `COMPILER_RT_HAS_TSAN` in `pkgs/development/compilers/llvm/6/compiler-rt.nix`
+
+
+If `target_include_directories` this new thing doesn't work ... overwrite sdk path?

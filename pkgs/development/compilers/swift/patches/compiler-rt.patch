@@ -1,8 +1,8 @@
 diff --git a/cmake/base-config-ix.cmake b/cmake/base-config-ix.cmake
-index 2a44d830b..78ac1114c 100644
+index 2a44d830b..e592559d0 100644
 --- a/cmake/base-config-ix.cmake
 +++ b/cmake/base-config-ix.cmake
-@@ -89,16 +89,16 @@ else(LLVM_ENABLE_PER_TARGET_RUNTIME_DIR)
+@@ -89,16 +89,21 @@ else(LLVM_ENABLE_PER_TARGET_RUNTIME_DIR)
  endif()
  
  if(APPLE)
@@ -26,6 +26,36 @@ index 2a44d830b..78ac1114c 100644
 +  #      OUTPUT_STRIP_TRAILING_WHITESPACE)
 +  #   set(OSX_SYSROOT_FLAG "-isysroot${OSX_SYSROOT}")
 +  # endif()
++
++  # Force CMake to include the path to CoreFoundation for the CFBase.h include.
++  # Normally, this would be found under OSX_SYSROOT, but the synthetic one
++  # provided by the xcbuild setup hook does not have it.
++  target_link_libraries(compiler-rt "-framework CoreFoundation")
  
    option(COMPILER_RT_ENABLE_IOS "Enable building for iOS" On)
    option(COMPILER_RT_ENABLE_WATCHOS "Enable building for watchOS - Experimental" Off)
+diff --git a/cmake/config-ix.cmake b/cmake/config-ix.cmake
+index db5c4645d..528832752 100644
+--- a/cmake/config-ix.cmake
++++ b/cmake/config-ix.cmake
+@@ -263,13 +263,13 @@ if(APPLE)
+   find_darwin_sdk_dir(DARWIN_tvossim_SYSROOT appletvsimulator)
+   find_darwin_sdk_dir(DARWIN_tvos_SYSROOT appletvos)
+ 
+-  if(NOT DARWIN_osx_SYSROOT)
+-    if(EXISTS /usr/include)
+-      set(DARWIN_osx_SYSROOT /)
+-    else()
+-      message(ERROR "Could not detect OS X Sysroot. Either install Xcode or the Apple Command Line Tools")
+-    endif()
+-  endif()
++  # if(NOT DARWIN_osx_SYSROOT)
++  #   if(EXISTS /usr/include)
++  #     set(DARWIN_osx_SYSROOT /)
++  #   else()
++  #     message(ERROR "Could not detect OS X Sysroot. Either install Xcode or the Apple Command Line Tools")
++  #   endif()
++  # endif()
+ 
+   if(COMPILER_RT_ENABLE_IOS)
+     list(APPEND DARWIN_EMBEDDED_PLATFORMS ios)
