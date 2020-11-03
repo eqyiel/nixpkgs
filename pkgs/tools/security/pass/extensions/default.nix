@@ -7,7 +7,7 @@ with pkgs;
     pythonPackages = python3Packages;
   };
   pass-checkup = callPackage ./checkup.nix {};
-  pass-import = callPackage ./import.nix {
+  pass-import = callPackage ./import {
     pythonPackages = python3Packages;
   };
   pass-otp = callPackage ./otp.nix {};

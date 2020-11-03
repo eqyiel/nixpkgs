@@ -31,14 +31,6 @@ let
       buildInputs = [ makeWrapper ] ++ concatMap (x: x.buildInputs) selected;
 
       postBuild = ''
-        files=$(find $out/bin/ -type f -exec readlink -f {} \;)
-        rm $out/bin
-        mkdir $out/bin
-
-        for i in $files; do
-          ln -sf $i $out/bin/$(basename $i)
-        done
-
         wrapProgram $out/bin/pass \
           --set SYSTEM_EXTENSION_DIR "$out/lib/password-store/extensions"
       '';

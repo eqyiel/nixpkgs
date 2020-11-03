@@ -1,0 +1,15 @@
+diff --git a/setup.py b/setup.py
+index b30870c..b596eb7 100644
+--- a/setup.py
++++ b/setup.py
+@@ -15,8 +15,8 @@ with Path('pass_import', '__about__.py').open() as file:
+ with open('README.md') as file:
+     long_description = file.read()
+ 
+-share = Path(sys.prefix, 'share')
+-lib = Path('/usr', 'lib', 'password-store', 'extensions')
++share = Path('share')
++lib = Path('lib', 'password-store', 'extensions')
+ if '--user' in sys.argv:
+     lib = Path.home() / '.password-store' / 'extensions'
+     if 'XDG_DATA_HOME' in os.environ:
