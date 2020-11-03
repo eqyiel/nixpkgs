@@ -11,7 +11,7 @@ stdenv.mkDerivation rec {
     sha256 = "0jylykigxmsqvdny265k58vpxa4cqs1hq2f7mph1nl3apfx2shrh";
   };
 
-  buildInputs = [ libav libkeyfinder ];
+  buildInputs = [ (libav.override { vaapiSupport = !stdenv.isDarwin; }) libkeyfinder ];
 
   makeFlags = [ "PREFIX=$(out)" ];
 
@@ -26,6 +26,6 @@ stdenv.mkDerivation rec {
       used to estimate the musical key of many different audio formats.
     '';
     license = licenses.gpl3Plus;
-    platforms = platforms.linux;
+    platforms = platforms.unix;
   };
 }

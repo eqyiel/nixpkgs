@@ -26,13 +26,13 @@ stdenv.mkDerivation rec {
     mkdir -p $out/include/keyfinder
     install -m644 *.h $out/include/keyfinder
     mkdir -p $out/lib
-    cp -a lib*.so* $out/lib
+    cp -a lib*.so* lib*.dylib* $out/lib
   '';
 
   meta = with stdenv.lib; {
     description = "Musical key detection for digital audio (C++ library)";
     homepage = "http://www.ibrahimshaath.co.uk/keyfinder/";
     license = licenses.gpl3Plus;
-    platforms = platforms.linux;
+    platforms = platforms.unix;
   };
 }

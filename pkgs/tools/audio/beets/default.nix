@@ -1,59 +1,74 @@
-{ stdenv, fetchFromGitHub, writeScript, glibcLocales, diffPlugins
-, pythonPackages, imagemagick, gobject-introspection, gst_all_1
+{ stdenv
+, fetchFromGitHub
+, writeScript
+, glibcLocales
+, diffPlugins
+, pythonPackages
+, imagemagick
+, gobject-introspection
+, gst_all_1
 , runtimeShell
 , fetchpatch
 
-# Attributes needed for tests of the external plugins
-, callPackage, beets
+  # Attributes needed for tests of the external plugins
+, callPackage
+, beets
 
-, enableAbsubmit       ? stdenv.lib.elem stdenv.hostPlatform.system essentia-extractor.meta.platforms, essentia-extractor ? null
+, enableAbsubmit ? stdenv.lib.elem stdenv.hostPlatform.system essentia-extractor.meta.platforms
+, essentia-extractor ? null
 , enableAcousticbrainz ? true
-, enableAcoustid       ? true
-, enableBadfiles       ? true, flac ? null, mp3val ? null
-, enableConvert        ? true, ffmpeg_3 ? null
-, enableDiscogs        ? true
-, enableEmbyupdate     ? true
-, enableFetchart       ? true
-, enableGmusic         ? true
-, enableKeyfinder      ? true, keyfinder-cli ? null
-, enableKodiupdate     ? true
-, enableLastfm         ? true
-, enableLoadext        ? true
-, enableMpd            ? true
-, enablePlaylist       ? true
-, enableReplaygain     ? true, bs1770gain ? null
-, enableSonosUpdate    ? true
+, enableAcoustid ? true
+, enableBadfiles ? true
+, flac ? null
+, mp3val ? null
+, enableConvert ? true
+, ffmpeg_3 ? null
+, enableDiscogs ? true
+, enableEmbyupdate ? true
+, enableFetchart ? true
+, enableGmusic ? true
+, enableKeyfinder ? true
+, keyfinder-cli ? null
+, enableKodiupdate ? true
+, enableLastfm ? true
+, enableLoadext ? true
+, enableMpd ? true
+, enablePlaylist ? true
+, enableReplaygain ? true
+, bs1770gain ? null
+, enableSonosUpdate ? true
 , enableSubsonicupdate ? true
-, enableThumbnails     ? true
-, enableWeb            ? true
+, enableThumbnails ? true
+, enableWeb ? true
 
-# External plugins
-, enableAlternatives   ? false
-, enableCheck          ? false, liboggz ? null
-, enableCopyArtifacts  ? false
-, enableExtraFiles     ? false
+  # External plugins
+, enableAlternatives ? false
+, enableCheck ? false
+, liboggz ? null
+, enableCopyArtifacts ? false
+, enableExtraFiles ? false
 
-, bashInteractive, bash-completion
+, bashInteractive
+, bash-completion
 }:
 
-assert enableAbsubmit    -> essentia-extractor            != null;
-assert enableAcoustid    -> pythonPackages.pyacoustid     != null;
-assert enableBadfiles    -> flac != null && mp3val != null;
-assert enableCheck       -> flac != null && mp3val != null && liboggz != null;
-assert enableConvert     -> ffmpeg_3 != null;
-assert enableDiscogs     -> pythonPackages.discogs_client != null;
-assert enableFetchart    -> pythonPackages.responses      != null;
-assert enableGmusic      -> pythonPackages.gmusicapi      != null;
-assert enableKeyfinder   -> keyfinder-cli != null;
-assert enableLastfm      -> pythonPackages.pylast         != null;
-assert enableMpd         -> pythonPackages.mpd2           != null;
-assert enableReplaygain  -> bs1770gain                    != null;
-assert enableSonosUpdate -> pythonPackages.soco           != null;
-assert enableThumbnails  -> pythonPackages.pyxdg          != null;
-assert enableWeb         -> pythonPackages.flask          != null;
+assert enableAbsubmit -> essentia-extractor != null;
+assert enableAcoustid -> pythonPackages.pyacoustid != null;
+assert enableBadfiles -> flac != null && mp3val != null;
+assert enableCheck -> flac != null && mp3val != null && liboggz != null;
+assert enableConvert -> ffmpeg_3 != null;
+assert enableDiscogs -> pythonPackages.discogs_client != null;
+assert enableFetchart -> pythonPackages.responses != null;
+assert enableGmusic -> pythonPackages.gmusicapi != null;
+assert enableKeyfinder -> keyfinder-cli != null;
+assert enableLastfm -> pythonPackages.pylast != null;
+assert enableMpd -> pythonPackages.mpd2 != null;
+assert enableReplaygain -> bs1770gain != null;
+assert enableSonosUpdate -> pythonPackages.soco != null;
+assert enableThumbnails -> pythonPackages.pyxdg != null;
+assert enableWeb -> pythonPackages.flask != null;
 
 with stdenv.lib;
-
 let
   optionalPlugins = {
     absubmit = enableAbsubmit;
@@ -81,12 +96,45 @@ let
   };
 
   pluginsWithoutDeps = [
-    "beatport" "bench" "bpd" "bpm" "bucket" "cue" "duplicates" "edit" "embedart"
-    "export" "filefilter" "freedesktop" "fromfilename" "ftintitle" "fuzzy"
-    "hook" "ihate" "importadded" "importfeeds" "info" "inline" "ipfs" "lyrics"
-    "mbcollection" "mbsubmit" "mbsync" "metasync" "missing" "permissions" "play"
-    "plexupdate" "random" "rewrite" "scrub" "smartplaylist" "spotify" "the"
-    "types" "zero"
+    "beatport"
+    "bench"
+    "bpd"
+    "bpm"
+    "bucket"
+    "cue"
+    "duplicates"
+    "edit"
+    "embedart"
+    "export"
+    "filefilter"
+    "freedesktop"
+    "fromfilename"
+    "ftintitle"
+    "fuzzy"
+    "hook"
+    "ihate"
+    "importadded"
+    "importfeeds"
+    "info"
+    "inline"
+    "ipfs"
+    "lyrics"
+    "mbcollection"
+    "mbsubmit"
+    "mbsync"
+    "metasync"
+    "missing"
+    "permissions"
+    "play"
+    "plexupdate"
+    "random"
+    "rewrite"
+    "scrub"
+    "smartplaylist"
+    "spotify"
+    "the"
+    "types"
+    "zero"
   ];
 
   enabledOptionalPlugins = attrNames (filterAttrs (_: id) optionalPlugins);
@@ -115,7 +163,8 @@ let
     extrafiles = callPackage ./extrafiles-plugin.nix pluginArgs;
   };
 
-in pythonPackages.buildPythonApplication rec {
+in
+pythonPackages.buildPythonApplication rec {
   pname = "beets";
   version = "1.4.9";
 
@@ -138,29 +187,30 @@ in pythonPackages.buildPythonApplication rec {
     pythonPackages.gst-python
     pythonPackages.pygobject3
     gobject-introspection
-  ] ++ optional enableAbsubmit      essentia-extractor
-    ++ optional enableAcoustid      pythonPackages.pyacoustid
-    ++ optional (enableFetchart
-              || enableEmbyupdate
-              || enableKodiupdate
-              || enableLoadext
-              || enablePlaylist
-              || enableSubsonicupdate
-              || enableAcousticbrainz)
-                                    pythonPackages.requests
-    ++ optional enableCheck         plugins.check
-    ++ optional enableConvert       ffmpeg_3
-    ++ optional enableDiscogs       pythonPackages.discogs_client
-    ++ optional enableGmusic        pythonPackages.gmusicapi
-    ++ optional enableKeyfinder     keyfinder-cli
-    ++ optional enableLastfm        pythonPackages.pylast
-    ++ optional enableMpd           pythonPackages.mpd2
-    ++ optional enableSonosUpdate   pythonPackages.soco
-    ++ optional enableThumbnails    pythonPackages.pyxdg
-    ++ optional enableWeb           pythonPackages.flask
-    ++ optional enableAlternatives  plugins.alternatives
-    ++ optional enableCopyArtifacts plugins.copyartifacts
-    ++ optional enableExtraFiles    plugins.extrafiles
+  ] ++ optional enableAbsubmit essentia-extractor
+  ++ optional enableAcoustid pythonPackages.pyacoustid
+  ++ optional
+    (enableFetchart
+      || enableEmbyupdate
+      || enableKodiupdate
+      || enableLoadext
+      || enablePlaylist
+      || enableSubsonicupdate
+      || enableAcousticbrainz)
+    pythonPackages.requests
+  ++ optional enableCheck plugins.check
+  ++ optional enableConvert ffmpeg_3
+  ++ optional enableDiscogs pythonPackages.discogs_client
+  ++ optional enableGmusic pythonPackages.gmusicapi
+  ++ optional enableKeyfinder keyfinder-cli
+  ++ optional enableLastfm pythonPackages.pylast
+  ++ optional enableMpd pythonPackages.mpd2
+  ++ optional enableSonosUpdate pythonPackages.soco
+  ++ optional enableThumbnails pythonPackages.pyxdg
+  ++ optional enableWeb pythonPackages.flask
+  ++ optional enableAlternatives plugins.alternatives
+  ++ optional enableCopyArtifacts plugins.copyartifacts
+  ++ optional enableExtraFiles plugins.extrafiles
   ;
 
   buildInputs = [
@@ -184,7 +234,7 @@ in pythonPackages.buildPythonApplication rec {
     mpd2
     discogs_client
     pyxdg
-  ];
+  ] ++ (if !isDarwin then glibcLocales else darwin.locale);
 
   patches = [
     ./replaygain-default-bs1770gain.patch
@@ -245,7 +295,7 @@ in pythonPackages.buildPythonApplication rec {
     runHook preCheck
 
     LANG=en_US.UTF-8 \
-    LOCALE_ARCHIVE=${assert stdenv.isLinux; glibcLocales}/lib/locale/locale-archive \
+    ${optionalString (stdenv.buildPlatform.libc == "glibc") "LOCALE_ARCHIVE=${glibcLocales}/lib/locale/locale-archive"} \
     BEETS_TEST_SHELL="${testShell}" \
     BASH_COMPLETION_SCRIPT="${completion}" \
     HOME="$(mktemp -d)" nosetests -v
@@ -282,6 +332,6 @@ in pythonPackages.buildPythonApplication rec {
     homepage = "http://beets.io";
     license = licenses.mit;
     maintainers = with maintainers; [ aszlig domenkozar pjones ];
-    platforms = platforms.linux;
+    platforms = platforms.unix;
   };
 }
